@@ -18412,3 +18412,371 @@ function __ec16_menu(mx,my,cl,w,h) return __EC120.menu(mx,my,cl,w,h) end
 function __ec16_draw_top_hud(mx,my,cl) end
 if notify then pcall(function() notify("ECLIPZE v120 compact theme loaded", "success") end) end
 end
+
+--[[
+ECLIPZE v121 UI fix patch
+- Restores compact top HUD player card.
+- Removes fake window controls from the menu header.
+- Smaller animated switches everywhere.
+- Re-aligns the sidebar player card.
+- Keeps VISUALS and all old functions active.
+- Forces reliable Right Shift menu open/close.
+]]
+do
+    __EC121 = __EC121 or { anim = {}, click = {}, avatar = {}, key = {}, drag = {} }
+
+    function __EC121.t()
+        if tick then return tick() end
+        if os and os.time then return os.time() end
+        return 0
+    end
+
+    function __EC121.num(v,d)
+        if __EC120 and __EC120.num then return __EC120.num(v,d or 0) end
+        if type(v) == "number" then return v end
+        if tonumber then local ok,r = pcall(tonumber,v); if ok and r ~= nil then return r end end
+        return d or 0
+    end
+
+    function __EC121.lerp(a,b,s)
+        a = __EC121.num(a,0); b = __EC121.num(b,0); s = __EC121.num(s,0.15)
+        return a + (b - a) * s
+    end
+
+    function __EC121.theme()
+        if __EC120 and __EC120.theme then return __EC120.theme end
+        return { bg={0.006,0.006,0.014}, panel={0.012,0.011,0.026}, panel2={0.020,0.018,0.043}, card={0.020,0.018,0.044}, card2={0.028,0.022,0.060}, line={0.105,0.090,0.170}, acc={1.00,0.00,0.58}, acc2={1.00,0.18,0.72}, text={0.94,0.91,1.00}, dim={0.55,0.50,0.67}, ok={0.25,1.00,0.43} }
+    end
+
+    function __EC121.txt(x,y,s,r,g,b,a)
+        if __EC120 and __EC120.tl then return __EC120.tl(x,y,s,r,g,b,a) end
+    end
+
+    function __EC121.player_uid()
+        local uid = nil
+        pcall(function()
+            if GetLocalPlayer then local p = GetLocalPlayer(); if p and p.UserId then uid = p.UserId end end
+        end)
+        pcall(function()
+            if (not uid) and rbx and rbx.local_player then local p = rbx.local_player(); if p and p.user_id then uid = p:user_id() end end
+        end)
+        return uid
+    end
+
+    function __EC121.player_name()
+        if __EC120 and __EC120.player_name then return __EC120.player_name() end
+        local name = "Player"
+        pcall(function() if rbx and rbx.local_player then local p = rbx.local_player(); if p and p.get_name then local n = p:get_name(); if n and n ~= "" then name = tostring(n) end end end end)
+        pcall(function() if name == "Player" and GetLocalPlayer then local p = GetLocalPlayer(); if p and p.Name then name = tostring(p.Name) end end end)
+        return name
+    end
+
+    function __EC121.avatar_handle(uid,name)
+        if not uid then return nil end
+        local key = tostring(uid)
+        __EC121.avatar[key] = __EC121.avatar[key] or { last = 0, handles = {} }
+        local rec = __EC121.avatar[key]
+        for _,h in ipairs(rec.handles) do
+            if h and Drawing and Drawing.IsImageReady and Drawing.IsImageReady(h) then return h end
+        end
+        if __EC121.t() - (rec.last or 0) < 6 then return nil end
+        rec.last = __EC121.t()
+        pcall(function()
+            if __ec16_get_player_avatar_handle then
+                local h = __ec16_get_player_avatar_handle({ name = tostring(name or "Player"), Name = tostring(name or "Player"), user_id = uid, UserId = uid })
+                if h then rec.handles[#rec.handles+1] = h end
+            end
+        end)
+        pcall(function()
+            if Drawing and Drawing.LoadImage then
+                rec.handles[#rec.handles+1] = Drawing.LoadImage("https://www.roblox.com/headshot-thumbnail/image?userId=" .. key .. "&width=150&height=150&format=png")
+            end
+        end)
+        return nil
+    end
+
+    function __EC121.avatar(x,y,s)
+        local T = __EC121.theme()
+        local name = __EC121.player_name()
+        local uid = __EC121.player_uid()
+        if __EC120 and __EC120.rr then __EC120.rr(x,y,x+s,y+s,0.055,0.044,0.105,0.95,8) end
+        local h = __EC121.avatar_handle(uid,name)
+        if h and Drawing and Drawing.IsImageReady and Drawing.IsImageReady(h) then
+            pcall(function() Drawing.DrawImage(h,x,y,s,s,1,1,1,1,7) end)
+            return
+        end
+        if __EC120 and __EC120.circle then
+            __EC120.circle(x+s*0.50,y+s*0.38,s*0.16,T.acc[1],T.acc[2],T.acc[3],0.72)
+            __EC120.rr(x+s*0.28,y+s*0.58,x+s*0.72,y+s*0.80,T.acc2[1],T.acc2[2],T.acc2[3],0.42,7)
+        end
+    end
+
+    -- Compact overlay card above the menu. This is the returned top HUD player card.
+    function __ec16_draw_top_hud(mx,my,cl)
+        if not (__EC16 and __EC16.phase == "menu" and (__EC16.open or __EC16.animDir == -1)) then return end
+        if not (__EC120 and __EC120.rr and __EC120.out and __EC120.rect) then return end
+        local T = __EC121.theme()
+        local x = (__EC16.x or 80) + 18
+        local y = (__EC16.y or 70) - 56
+        if y < 8 then y = 8 end
+        local w = 210
+        local h = 46
+        __EC120.rr(x-1,y-1,x+w+1,y+h+1,T.acc[1],T.acc[2],T.acc[3],0.10,9)
+        __EC120.rr(x,y,x+w,y+h,T.card[1],T.card[2],T.card[3],0.88,9)
+        __EC120.out(x,y,x+w,y+h,T.line[1],T.line[2],T.line[3],0.48,1)
+        __EC121.avatar(x+9,y+7,32)
+        __EC121.txt(x+52,y+10,__EC121.player_name(),T.text[1],T.text[2],T.text[3],0.92)
+        __EC121.txt(x+52,y+26,"Local player",T.dim[1],T.dim[2],T.dim[3],0.82)
+        __EC120.rect(x+52,y+39,x+w-14,y+41,T.acc[1],T.acc[2],T.acc[3],0.85)
+    end
+
+    -- More distinct primitive icons. No emoji/text glyphs, so no question marks.
+    function __EC120.icon(x,y,k,on,a)
+        local T = __EC121.theme()
+        local r,g,b = T.dim[1],T.dim[2],T.dim[3]
+        if on then r,g,b = T.acc[1],T.acc[2],T.acc[3] end
+        a = a or 1
+        __EC120.circle(x,y,10,0.040,0.034,0.074,0.80*a)
+        if k == "aim" then
+            if Drawing and Drawing.DrawCircle then Drawing.DrawCircle(x,y,8,r,g,b,0.82*a,1.2); Drawing.DrawCircle(x,y,3,r,g,b,0.55*a,1) end
+            __EC120.line(x-12,y,x-6,y,r,g,b,a,1); __EC120.line(x+6,y,x+12,y,r,g,b,a,1); __EC120.line(x,y-12,x,y-6,r,g,b,a,1); __EC120.line(x,y+6,x,y+12,r,g,b,a,1)
+        elseif k == "target" then
+            __EC120.circle(x,y-5,3,r,g,b,a); if Drawing and Drawing.DrawCircle then Drawing.DrawCircle(x,y+5,8,r,g,b,0.72*a,1.2) end; __EC120.line(x-7,y+5,x+7,y+5,r,g,b,0.76*a,1)
+        elseif k == "eye" then
+            __EC120.line(x-10,y,x-5,y-5,r,g,b,a,1.3); __EC120.line(x-5,y-5,x,y-7,r,g,b,a,1.3); __EC120.line(x,y-7,x+5,y-5,r,g,b,a,1.3); __EC120.line(x+5,y-5,x+10,y,r,g,b,a,1.3)
+            __EC120.line(x-10,y,x-5,y+5,r,g,b,a,1.3); __EC120.line(x-5,y+5,x,y+7,r,g,b,a,1.3); __EC120.line(x,y+7,x+5,y+5,r,g,b,a,1.3); __EC120.line(x+5,y+5,x+10,y,r,g,b,a,1.3); __EC120.circle(x,y,3,r,g,b,a)
+        elseif k == "box" then
+            __EC120.out(x-8,y-7,x+8,y+7,r,g,b,0.92*a,1.2); __EC120.line(x-8,y-2,x+8,y-2,r,g,b,0.55*a,1); __EC120.line(x-2,y-7,x-2,y+7,r,g,b,0.55*a,1)
+        elseif k == "line" then
+            __EC120.line(x-9,y+6,x,y-1,r,g,b,a,1.8); __EC120.line(x,y-1,x+9,y-7,r,g,b,a,1.8); __EC120.circle(x-9,y+6,2.5,r,g,b,a); __EC120.circle(x,y-1,2.5,r,g,b,a); __EC120.circle(x+9,y-7,2.5,r,g,b,a)
+        elseif k == "aura" then
+            if Drawing and Drawing.DrawCircle then Drawing.DrawCircle(x,y,9,r,g,b,0.80*a,1.1); Drawing.DrawCircle(x,y,5,r,g,b,0.55*a,1) end; __EC120.circle(x,y,2,r,g,b,a)
+        elseif k == "tp" then
+            __EC120.line(x-8,y+7,x+8,y-7,r,g,b,a,2); __EC120.line(x+8,y-7,x+2,y-7,r,g,b,a,2); __EC120.line(x+8,y-7,x+8,y-1,r,g,b,a,2); __EC120.circle(x-8,y+7,2,r,g,b,0.85*a)
+        else
+            __EC120.line(x-7,y-5,x+7,y-5,r,g,b,a,1.5); __EC120.line(x-7,y,x+7,y,r,g,b,a,1.5); __EC120.line(x-7,y+5,x+7,y+5,r,g,b,a,1.5); __EC120.circle(x-3,y-5,2,r,g,b,a); __EC120.circle(x+3,y,2,r,g,b,a); __EC120.circle(x-1,y+5,2,r,g,b,a)
+        end
+    end
+
+    -- Smaller switch with smooth motion and press pulse.
+    function __EC120.switch(x,y,on)
+        local T = __EC121.theme()
+        local key = "sw_" .. tostring(math.floor(x)) .. "_" .. tostring(math.floor(y))
+        __EC121.anim[key] = __EC121.lerp(__EC121.anim[key] or (on and 1 or 0), on and 1 or 0, 0.20)
+        local p = __EC121.anim[key]
+        local w,h = 36,18
+        local rr = __EC120.rr
+        rr(x,y,x+w,y+h,0.060,0.055,0.095,0.92,9)
+        rr(x+1,y+1,x+w-1,y+h-1,__EC121.lerp(0.110,T.acc[1],p),__EC121.lerp(0.105,T.acc[2],p),__EC121.lerp(0.155,T.acc[3],p),0.36+0.55*p,8)
+        local kx = x + 9 + (w - 18) * p
+        __EC120.circle(kx,y+h*0.5,7.3,0.94,0.92,1.00,0.98)
+        __EC120.circle(kx,y+h*0.5,2.4,__EC121.lerp(T.dim[1],T.acc[1],p),__EC121.lerp(T.dim[2],T.acc[2],p),__EC121.lerp(T.dim[3],T.acc[3],p),0.90)
+    end
+
+    -- Repositioned switch rows so the smaller toggle sits cleanly at the right edge.
+    function __EC120.row(mx,my,cl,x,y,w,h,title,sub,id,kind)
+        local T = __EC121.theme()
+        local on = __EC120.getc(id)
+        if __EC120.hit(mx,my,cl,x,y,x+w,y+h) then on = not on; __EC120.setc(id,on); __EC121.click[tostring(id)] = __EC121.t() end
+        if __EC120.inside(mx,my,x,y,x+w,y+h) then __EC120.rr(x,y,x+w,y+h,0.040,0.034,0.080,0.43,9) end
+        __EC120.icon(x+22,y+h*0.5,kind or "cfg",on,1)
+        __EC120.tl(x+50,y+10,title,T.text[1],T.text[2],T.text[3],0.94)
+        if sub and sub ~= "" then __EC120.tl(x+50,y+29,sub,T.dim[1],T.dim[2],T.dim[3],0.80) end
+        __EC120.switch(x+w-46,y+h*0.5-9,on)
+        local ct = __EC121.click[tostring(id)]
+        if ct then local q = 1 - ((__EC121.t() - ct) / 0.34); if q > 0 then __EC120.circle(x+w-28,y+h*0.5,16 + 8*(1-q),T.acc[1],T.acc[2],T.acc[3],0.08*q) else __EC121.click[tostring(id)] = nil end end
+        __EC120.rect(x+12,y+h-1,x+w-12,y+h,T.line[1],T.line[2],T.line[3],0.22)
+        return on
+    end
+
+    function __EC120.brow(mx,my,cl,x,y,w,h,title,sub,tbl,key,kind)
+        tbl = tbl or __EC16
+        local T = __EC121.theme()
+        local on = tbl and tbl[key] == true
+        local id = tostring(key or title)
+        if __EC120.hit(mx,my,cl,x,y,x+w,y+h) then on = not on; if tbl then tbl[key] = on end; __EC121.click[id] = __EC121.t() end
+        if __EC120.inside(mx,my,x,y,x+w,y+h) then __EC120.rr(x,y,x+w,y+h,0.040,0.034,0.080,0.43,9) end
+        __EC120.icon(x+22,y+h*0.5,kind or "cfg",on,1)
+        __EC120.tl(x+50,y+10,title,T.text[1],T.text[2],T.text[3],0.94)
+        if sub and sub ~= "" then __EC120.tl(x+50,y+29,sub,T.dim[1],T.dim[2],T.dim[3],0.80) end
+        __EC120.switch(x+w-46,y+h*0.5-9,on)
+        __EC120.rect(x+12,y+h-1,x+w-12,y+h,T.line[1],T.line[2],T.line[3],0.22)
+        return on
+    end
+
+    -- Clean proportional card inside the sidebar.
+    function __EC120.player_card(x,y,w)
+        local T = __EC121.theme()
+        local h = 58
+        __EC120.rr(x,y,x+w,y+h,0.022,0.019,0.048,0.96,10)
+        __EC120.out(x,y,x+w,y+h,T.line[1],T.line[2],T.line[3],0.42,1)
+        __EC121.avatar(x+12,y+10,36)
+        __EC120.tl(x+58,y+13,__EC121.player_name(),T.text[1],T.text[2],T.text[3],0.92)
+        __EC120.tl(x+58,y+31,"Local player",T.dim[1],T.dim[2],T.dim[3],0.82)
+        __EC120.rect(x+58,y+48,x+w-14,y+50,T.acc[1],T.acc[2],T.acc[3],0.88)
+    end
+
+    -- Sidebar with fixed card spacing and cleaner active indicators.
+    function __EC120.sidebar(mx,my,cl,x,y,w,h,tab)
+        local T = __EC121.theme()
+        local sec = __EC120.getsec(tab)
+        __EC120.rr(x,y,x+w,y+h,T.panel[1],T.panel[2],T.panel[3],0.96,12)
+        __EC120.out(x,y,x+w,y+h,T.line[1],T.line[2],T.line[3],0.55,1)
+        __EC120.player_card(x+14,y+14,w-28)
+        local yy = y + 88
+        local list = __EC120.sections[tab] or {}
+        for i,it in ipairs(list) do
+            local active = (sec == it[1])
+            if __EC120.hit(mx,my,cl,x+14,yy,x+w-14,yy+42) then __EC120.setsec(tab,it[1]); active = true; sec = it[1] end
+            if active then
+                __EC120.rr(x+14,yy,x+w-14,yy+42,0.115,0.040,0.124,0.93,9)
+                __EC120.rect(x+14,yy+4,x+17,yy+38,T.acc[1],T.acc[2],T.acc[3],0.92)
+            elseif __EC120.inside(mx,my,x+14,yy,x+w-14,yy+42) then
+                __EC120.rr(x+14,yy,x+w-14,yy+42,0.045,0.034,0.080,0.55,9)
+            end
+            __EC120.icon(x+34,yy+21,it[2],active,0.90)
+            __EC120.tl(x+60,yy+13,it[1],active and T.text[1] or T.dim[1],active and T.text[2] or T.dim[2],active and T.text[3] or T.dim[3],active and 0.96 or 0.86)
+            yy = yy + 48
+        end
+        return sec
+    end
+
+    -- Header without minimize/maximize/close symbols. Keeps all content tabs.
+    function __EC120.menu(mx,my,cl,w,h)
+        if not __EC16 then return end
+        if not (__EC16.open or __EC16.animDir == -1) then return end
+        mx = mx or 0; my = my or 0; w = w or 1280; h = h or 720
+        __EC16.mainTab = __EC16.mainTab or "aim"
+        if __EC16.anim == nil then __EC16.anim = 1 end
+        if __EC16.animDir == -1 then
+            __EC16.anim = __EC121.lerp(__EC16.anim,0,0.20)
+            if __EC16.anim < 0.025 then __EC16.open = false; __EC16.anim = 0; return end
+        else
+            __EC16.animDir = 1
+            __EC16.anim = __EC121.lerp(__EC16.anim,1,0.18)
+            __EC16.open = true
+        end
+        local T = __EC121.theme()
+        local mw = 940
+        local mh = 580
+        if w < 1020 then mw = w - 44 end
+        if h < 680 then mh = h - 74 end
+        if mw < 620 then mw = w - 20 end
+        if mh < 420 then mh = h - 20 end
+        mw = math.floor(__EC120.clamp(mw,560,940)); mh = math.floor(__EC120.clamp(mh,400,580))
+        if not __EC16.v121pos then __EC16.x = math.floor((w-mw)/2); __EC16.y = math.floor((h-mh)/2) + 8; __EC16.v121pos = true end
+        __EC16.w = mw; __EC16.h = mh
+        local x = __EC16.x or 60
+        local y = (__EC16.y or 60) + (1 - (__EC16.anim or 1)) * 14
+        if __EC120.hit(mx,my,cl,x,y,x+mw,y+58) and not __EC121.drag.on then __EC121.drag.on = true; __EC121.drag.dx = mx - x; __EC121.drag.dy = my - (__EC16.y or y) end
+        if cl ~= true then __EC121.drag.on = false end
+        if __EC121.drag.on then __EC16.x = mx - (__EC121.drag.dx or 0); __EC16.y = my - (__EC121.drag.dy or 0); x = __EC16.x; y = __EC16.y end
+        if x < 4 then x = 4; __EC16.x = x end; if y < 64 then y = 64; __EC16.y = y end; if x + mw > w - 4 then x = w - mw - 4; __EC16.x = x end; if y + mh > h - 4 then y = h - mh - 4; __EC16.y = y end
+        __EC120.rr(x,y,x+mw,y+mh,T.bg[1],T.bg[2],T.bg[3],0.96,14)
+        __EC120.out(x,y,x+mw,y+mh,T.line[1],T.line[2],T.line[3],0.70,1)
+        __EC120.out(x+1,y+1,x+mw-1,y+mh-1,T.acc[1],T.acc[2],T.acc[3],0.15,1)
+        __EC120.top_tabs(mx,my,cl,x,y,mw)
+        local pad = 18
+        local sx = x + pad
+        local sy = y + 74
+        local sw = 212
+        local sh = mh - 92
+        if mw < 820 then sw = 184 end
+        local sec = __EC120.sidebar(mx,my,cl,sx,sy,sw,sh,__EC16.mainTab)
+        local cx = sx + sw + 18
+        local cy = sy
+        local cw = x + mw - pad - cx
+        local ch = sh
+        if cw < 260 then return end
+        if __EC16.mainTab == "aim" then __EC120.draw_aim(mx,my,cl,cx,cy,cw,ch,sec)
+        elseif __EC16.mainTab == "esp" then __EC120.draw_esp(mx,my,cl,cx,cy,cw,ch,sec)
+        elseif __EC16.mainTab == "noclip" then __EC120.draw_noclip(mx,my,cl,cx,cy,cw,ch,sec)
+        elseif __EC16.mainTab == "visuals" then __EC120.draw_visuals(mx,my,cl,cx,cy,cw,ch,sec)
+        else __EC120.draw_configs(mx,my,cl,cx,cy,cw,ch,sec) end
+    end
+
+    function __ec16_menu(mx,my,cl,w,h)
+        return __EC120.menu(mx,my,cl,w,h)
+    end
+
+    function __EC121.toggle_menu()
+        __EC16 = __EC16 or {}
+        __EC16.phase = "menu"
+        __EC16.menuBindKey = 0xA1
+        if __EC16.open and __EC16.animDir ~= -1 then
+            __EC16.wantOpen = false
+            __EC16.animDir = -1
+            if (__EC16.anim or 0) <= 0 then __EC16.anim = 1 end
+        else
+            __EC16.wantOpen = true
+            __EC16.open = true
+            __EC16.animDir = 1
+            if (__EC16.anim or 0) < 0.02 then __EC16.anim = 0.02 end
+        end
+    end
+
+    function __EC121.key_tick()
+        if not Windows or not Windows.IsKeyPressed then return end
+        __EC16 = __EC16 or {}
+        __EC16.phase = "menu"
+        __EC16.menuBindKey = 0xA1
+        -- Disable the old poll toggle; this patch owns RShift so it cannot double-toggle.
+        __EC16_MENU_ALLOWED = false
+        local down = false
+        pcall(function() down = Windows.IsKeyPressed(0xA1) == true end)
+        if down and not __EC121.key.rshift then __EC121.toggle_menu() end
+        __EC121.key.rshift = down
+    end
+
+    pcall(function()
+        if __EC16 then
+            __EC16.phase = "menu"
+            __EC16.menuBindKey = 0xA1
+            __EC16.open = true
+            __EC16.wantOpen = true
+            __EC16.animDir = 1
+            if not __EC16.anim then __EC16.anim = 1 end
+        end
+        __EC16_MENU_ALLOWED = false
+    end)
+
+    if hooks and hooks.on_key then
+        pcall(function()
+            hooks.on_key(0xA1, function()
+                __EC121.toggle_menu()
+            end)
+        end)
+    end
+    if hooks and hooks.on_render then
+        hooks.on_render(function()
+            pcall(__EC121.key_tick)
+        end)
+    end
+
+    if notify then pcall(function() notify("ECLIPZE v121 UI fixes loaded", "success") end) end
+end
+
+-- v121 hotfix: avoid double toggle when both hooks.on_key and polling see Right Shift.
+do
+    if __EC121 then
+        function __EC121.toggle_menu()
+            __EC16 = __EC16 or {}
+            __EC16.phase = "menu"
+            __EC16.menuBindKey = 0xA1
+            __EC16_MENU_ALLOWED = false
+            if Windows and Windows.IsKeyPressed then
+                pcall(function() __EC121.key.rshift = Windows.IsKeyPressed(0xA1) == true end)
+            end
+            if __EC16.open and __EC16.animDir ~= -1 then
+                __EC16.wantOpen = false
+                __EC16.animDir = -1
+                if (__EC16.anim or 0) <= 0 then __EC16.anim = 1 end
+            else
+                __EC16.wantOpen = true
+                __EC16.open = true
+                __EC16.animDir = 1
+                if (__EC16.anim or 0) < 0.02 then __EC16.anim = 0.02 end
+            end
+        end
+    end
+end
