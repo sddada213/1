@@ -18817,3 +18817,666 @@ end)()
 
     if notify then pcall(function() notify("ECLIPZE v118 photo AIM menu loaded", "success") end) end
 end)()
+
+-- ECLIPZE v119: proportional full-theme menu fix
+-- fixes: oversized v118 shell, removed level/progress/footer question marks,
+-- and redraws AIM / FALLEN ESP / NOCLIP / VISUALS / CONFIGS in one style.
+do
+    if __EC_V119_PHOTO_MENU_FULL then return end
+    __EC_V119_PHOTO_MENU_FULL = true
+
+    local function n(v, d)
+        local ok, r = pcall(function() return tonumber(v) end)
+        if ok and r ~= nil then return r end
+        if type(v) == "number" then return v end
+        return d
+    end
+    local function clamp(v, a, b)
+        v = n(v, a)
+        if v < a then return a end
+        if v > b then return b end
+        return v
+    end
+    local function sm(t)
+        t = clamp(t or 0, 0, 1)
+        return t * t * (3 - 2 * t)
+    end
+    local function inb(mx,my,x1,y1,x2,y2)
+        return mx >= x1 and mx <= x2 and my >= y1 and my <= y2
+    end
+    local function click(mx,my,cl,x1,y1,x2,y2)
+        return cl == true and not (__EC16 and __EC16.lastClick == true) and inb(mx,my,x1,y1,x2,y2)
+    end
+    local function rect(x1,y1,x2,y2,r,g,b,a)
+        if Drawing and Drawing.DrawBoxFilled then Drawing.DrawBoxFilled(x1,y1,x2,y2,r,g,b,a or 1) end
+    end
+    local function out(x1,y1,x2,y2,r,g,b,a,t)
+        if Drawing and Drawing.DrawBox then Drawing.DrawBox(x1,y1,x2,y2,r,g,b,a or 1,t or 1) end
+    end
+    local function line(x1,y1,x2,y2,r,g,b,a,t)
+        if Drawing and Drawing.DrawLine then Drawing.DrawLine(x1,y1,x2,y2,r,g,b,a or 1,t or 1) end
+    end
+    local function rr(x1,y1,x2,y2,r,g,b,a,rad)
+        if __ec16_draw_round_rect then
+            __ec16_draw_round_rect(x1,y1,x2,y2,r,g,b,a or 1,rad or 8)
+            return
+        end
+        rad = math.floor(math.min(rad or 8, (x2-x1)*0.5, (y2-y1)*0.5))
+        if rad < 1 then rect(x1,y1,x2,y2,r,g,b,a or 1) return end
+        rect(x1+rad,y1,x2-rad,y2,r,g,b,a or 1)
+        rect(x1,y1+rad,x1+rad,y2-rad,r,g,b,a or 1)
+        rect(x2-rad,y1+rad,x2,y2-rad,r,g,b,a or 1)
+        Drawing.DrawCircleFilled(x1+rad,y1+rad,rad,r,g,b,a or 1)
+        Drawing.DrawCircleFilled(x2-rad,y1+rad,rad,r,g,b,a or 1)
+        Drawing.DrawCircleFilled(x1+rad,y2-rad,rad,r,g,b,a or 1)
+        Drawing.DrawCircleFilled(x2-rad,y2-rad,rad,r,g,b,a or 1)
+    end
+    local function tw(s)
+        s = tostring(s or "")
+        if __ec16_text_w then return __ec16_text_w(s) end
+        return #s * 7
+    end
+    local function tleft(x,y,s,r,g,b,a)
+        s = tostring(s or "")
+        Drawing.DrawTextWithOutline(x + tw(s) * 0.5, y, s, r,g,b,a or 1, 0,0,0,0.92)
+    end
+    local function tcenter(x,y,s,r,g,b,a)
+        s = tostring(s or "")
+        Drawing.DrawTextWithOutline(x, y, s, r,g,b,a or 1, 0,0,0,0.92)
+    end
+    local function tright(x,y,s,r,g,b,a)
+        s = tostring(s or "")
+        Drawing.DrawTextWithOutline(x - tw(s) * 0.5, y, s, r,g,b,a or 1, 0,0,0,0.92)
+    end
+    local T = {
+        bg={0.006,0.006,0.015}, panel={0.017,0.015,0.038}, panel2={0.025,0.022,0.052},
+        card={0.032,0.026,0.068}, card2={0.045,0.035,0.090}, line={0.15,0.13,0.25},
+        acc={1.00,0.00,0.55}, acc2={1.00,0.18,0.72}, text={0.94,0.91,1.00}, dim={0.58,0.54,0.72}, green={0.25,1.00,0.42}
+    }
+    local function bg_card(x1,y1,x2,y2,rad,alpha)
+        rr(x1-1,y1-1,x2+1,y2+1,T.acc[1],T.acc[2],T.acc[3],0.025,rad+1)
+        rr(x1,y1,x2,y2,T.card[1],T.card[2],T.card[3],alpha or 0.96,rad)
+        rr(x1+1,y1+1,x2-1,y2-1,0.018,0.016,0.038,0.96,math.max(1,(rad or 8)-1))
+        out(x1,y1,x2,y2,0.18,0.15,0.30,0.70,1)
+    end
+    local function icon(cx,cy,kind,active,alpha)
+        alpha = alpha or 1
+        local ar,ag,ab = T.acc[1],T.acc[2],T.acc[3]
+        local dr,dg,db = active and ar or T.dim[1], active and ag or T.dim[2], active and ab or T.dim[3]
+        Drawing.DrawCircle(cx,cy,12,dr,dg,db,0.70*alpha,1.5)
+        if kind == "aim" or kind == "target" then
+            line(cx-16,cy,cx-5,cy,dr,dg,db,0.75*alpha,1.2); line(cx+5,cy,cx+16,cy,dr,dg,db,0.75*alpha,1.2)
+            line(cx,cy-16,cx,cy-5,dr,dg,db,0.75*alpha,1.2); line(cx,cy+5,cx,cy+16,dr,dg,db,0.75*alpha,1.2)
+            Drawing.DrawCircle(cx,cy,4,dr,dg,db,0.85*alpha,1.2)
+        elseif kind == "eye" then
+            line(cx-12,cy,cx-5,cy-6,dr,dg,db,0.85*alpha,1.2); line(cx-5,cy-6,cx+5,cy-6,dr,dg,db,0.85*alpha,1.2)
+            line(cx+5,cy-6,cx+12,cy,dr,dg,db,0.85*alpha,1.2); line(cx+12,cy,cx+5,cy+6,dr,dg,db,0.85*alpha,1.2)
+            line(cx+5,cy+6,cx-5,cy+6,dr,dg,db,0.85*alpha,1.2); line(cx-5,cy+6,cx-12,cy,dr,dg,db,0.85*alpha,1.2)
+            Drawing.DrawCircleFilled(cx,cy,3,dr,dg,db,0.90*alpha)
+        elseif kind == "tp" then
+            line(cx-10,cy+8,cx,cy-10,dr,dg,db,0.85*alpha,1.5); line(cx,cy-10,cx+10,cy+8,dr,dg,db,0.85*alpha,1.5)
+            Drawing.DrawCircleFilled(cx,cy+8,3,dr,dg,db,0.85*alpha)
+        elseif kind == "box" then
+            out(cx-9,cy-8,cx+9,cy+8,dr,dg,db,0.85*alpha,1.2)
+            line(cx-9,cy-1,cx+9,cy-1,dr,dg,db,0.45*alpha,1)
+        elseif kind == "list" then
+            for i=0,2 do
+                Drawing.DrawCircleFilled(cx-8,cy-6+i*6,1.7,dr,dg,db,0.85*alpha)
+                line(cx-3,cy-6+i*6,cx+10,cy-6+i*6,dr,dg,db,0.70*alpha,1.2)
+            end
+        elseif kind == "aura" then
+            Drawing.DrawCircle(cx,cy,7,dr,dg,db,0.85*alpha,1.4)
+            Drawing.DrawCircle(cx,cy,15,dr,dg,db,0.30*alpha,1.2)
+        elseif kind == "cfg" then
+            out(cx-8,cy-11,cx+8,cy+11,dr,dg,db,0.80*alpha,1.2)
+            line(cx-5,cy-4,cx+5,cy-4,dr,dg,db,0.70*alpha,1); line(cx-5,cy+2,cx+5,cy+2,dr,dg,db,0.70*alpha,1)
+        else
+            Drawing.DrawCircleFilled(cx,cy,4,dr,dg,db,0.85*alpha)
+        end
+    end
+    local function get_info()
+        local name, uid = "Local player", nil
+        pcall(function()
+            if rbx and rbx.local_player then
+                local lp = rbx.local_player()
+                if lp and lp.get_name then local v = lp:get_name(); if v and v ~= "" then name = tostring(v) end end
+                if lp and lp.user_id then uid = lp:user_id() end
+            end
+        end)
+        pcall(function()
+            if GetLocalPlayer then
+                local lp = GetLocalPlayer()
+                if lp then
+                    if lp.Name and lp.Name ~= "" then name = tostring(lp.Name) end
+                    if lp.UserId then uid = lp.UserId end
+                end
+            end
+        end)
+        return name, uid
+    end
+    local function draw_avatar(x,y,s)
+        local name, uid = get_info()
+        local handle = nil
+        if uid and __ec16_get_player_avatar_handle then
+            pcall(function() handle = __ec16_get_player_avatar_handle({name=name,user_id=uid}) end)
+        end
+        rr(x,y,x+s,y+s,0.11,0.08,0.16,0.98,9)
+        if handle and Drawing.IsImageReady and Drawing.IsImageReady(handle) then
+            Drawing.DrawImage(handle,x,y,s,s,1,1,1,1,8)
+        else
+            local l = string.upper(string.sub(name or "P",1,1))
+            tcenter(x+s*0.5,y+s*0.5-7,l,1,1,1,0.95)
+        end
+        return name
+    end
+    local function get_check(id)
+        local ok, v = pcall(function() return UIManager.GetCheckboxValue(id) end)
+        return ok and v == true
+    end
+    local function set_check(id,v)
+        pcall(function() UIManager.SetCheckboxValue(id, v == true) end)
+    end
+    local function get_si(id, d)
+        local ok, v = pcall(function() return UIManager.GetSliderIntValue(id) end)
+        if ok and v ~= nil then return n(v,d or 0) end
+        return d or 0
+    end
+    local function set_si(id,v) pcall(function() UIManager.SetSliderIntValue(id, math.floor(v+0.5)) end) end
+    local function hsv(h)
+        if __ec16_hsv_to_rgb then return __ec16_hsv_to_rgb(h) end
+        h = (h or 0) % 1
+        local i = math.floor(h*6); local f = h*6 - i; local q = 1 - f
+        i = i % 6
+        if i==0 then return {1,f,0,1} elseif i==1 then return {q,1,0,1} elseif i==2 then return {0,1,f,1} elseif i==3 then return {0,q,1,1} elseif i==4 then return {f,0,1,1} end
+        return {1,0,q,1}
+    end
+    local function apply_hue(target,hue)
+        local c = hsv(hue)
+        if target == "armor_border" then __EC16.armorBorderHue=hue; __EC16.armorBorderColor=c
+        elseif target == "armor_glow" then __EC16.armorGlowHue=hue; __EC16.armorGlowColor=c
+        elseif target == "tracer" then __EC16.tracerHue=hue; __EC16.tracerColor=c
+        elseif target == "hitfx" then __EC16.hitFxHue=hue; __EC16.hitFxColor=c
+        elseif target == "aura_top" then __EC16.selfAuraTopHue=hue; __EC16.selfAuraTopColor=c
+        elseif target == "aura_bottom" then __EC16.selfAuraBottomHue=hue; __EC16.selfAuraBottomColor=c
+        else __EC16.fovHue=hue; __EC16.fovColor=c end
+        pcall(function() if __ec16_apply_colors then __ec16_apply_colors() end end)
+    end
+    local function hue_of(target)
+        if target == "armor_border" then return __EC16.armorBorderHue or 0.90 end
+        if target == "armor_glow" then return __EC16.armorGlowHue or 0.90 end
+        if target == "tracer" then return __EC16.tracerHue or 0.58 end
+        if target == "hitfx" then return __EC16.hitFxHue or 0.58 end
+        if target == "aura_top" then return __EC16.selfAuraTopHue or 0.55 end
+        if target == "aura_bottom" then return __EC16.selfAuraBottomHue or 0.92 end
+        return __EC16.fovHue or 0.90
+    end
+    local function draw_switch(x,y,on)
+        local r,g,b = on and T.acc[1] or 0.13, on and T.acc[2] or 0.13, on and T.acc[3] or 0.22
+        rr(x,y,x+50,y+26,r,g,b,on and 0.96 or 0.88,13)
+        local kx = on and (x+36) or (x+14)
+        Drawing.DrawCircleFilled(kx,y+13,11,0.95,0.93,1.0,0.98)
+        out(kx-11,y+2,kx+11,y+24,0,0,0,0.20,1)
+    end
+    local function check_row(mx,my,cl,x,y,w,h,title,sub,id,kind)
+        h = h or 56
+        local on = get_check(id)
+        local hov = inb(mx,my,x,y,x+w,y+h)
+        if click(mx,my,cl,x,y,x+w,y+h) then on = not on; set_check(id,on) end
+        if hov then rr(x,y,x+w,y+h,0.050,0.040,0.090,0.45,9) end
+        icon(x+24,y+h*0.5,kind or "target",on,1)
+        tleft(x+54,y+12,title,T.text[1],T.text[2],T.text[3],0.96)
+        if sub and sub ~= "" then tleft(x+54,y+31,sub,T.dim[1],T.dim[2],T.dim[3],0.82) end
+        draw_switch(x+w-58,y+h*0.5-13,on)
+        rect(x+12,y+h-1,x+w-12,y+h,T.line[1],T.line[2],T.line[3],0.30)
+        return on
+    end
+    local function bool_row(mx,my,cl,x,y,w,title,val,kind)
+        local hov = inb(mx,my,x,y,x+w,y+36)
+        if click(mx,my,cl,x,y,x+w,y+36) then val = not (val == true) end
+        if hov then rr(x,y,x+w,y+36,0.050,0.040,0.090,0.40,8) end
+        icon(x+18,y+18,kind or "target",val,0.85)
+        tleft(x+44,y+10,title,T.text[1],T.text[2],T.text[3],0.90)
+        draw_switch(x+w-58,y+5,val == true)
+        return val == true
+    end
+    local function slider_int(mx,my,cl,x,y,w,label,id,minv,maxv)
+        local val = get_si(id,minv)
+        minv = minv or 0; maxv = maxv or 100
+        val = clamp(val,minv,maxv)
+        tleft(x,y,label,T.text[1],T.text[2],T.text[3],0.90)
+        local sx, sy, sw = x, y+34, w-86
+        rr(sx,sy,sx+sw,sy+5,0.10,0.09,0.16,0.95,3)
+        local p = (val-minv)/(maxv-minv)
+        rect(sx,sy,sx+sw*p,sy+5,T.acc[1],T.acc[2],T.acc[3],0.92)
+        Drawing.DrawCircleFilled(sx+sw*p,sy+2.5,7,0.96,0.95,1,1)
+        rr(x+w-64,y+18,x+w,y+52,0.050,0.045,0.085,0.96,7)
+        out(x+w-64,y+18,x+w,y+52,0.20,0.18,0.32,0.75,1)
+        tcenter(x+w-32,y+28,tostring(math.floor(val+0.5)),T.text[1],T.text[2],T.text[3],0.95)
+        if cl == true and inb(mx,my,sx-4,sy-12,sx+sw+4,sy+18) then
+            val = minv + clamp((mx-sx)/sw,0,1)*(maxv-minv)
+            set_si(id,val)
+        end
+        return val
+    end
+    local function slider_float(mx,my,cl,x,y,w,label,key,cur,minv,maxv)
+        cur = clamp(n(cur,minv),minv,maxv)
+        tleft(x,y,label,T.text[1],T.text[2],T.text[3],0.90)
+        local sx, sy, sw = x, y+34, w-86
+        rr(sx,sy,sx+sw,sy+5,0.10,0.09,0.16,0.95,3)
+        local p = (cur-minv)/(maxv-minv)
+        rect(sx,sy,sx+sw*p,sy+5,T.acc[1],T.acc[2],T.acc[3],0.92)
+        Drawing.DrawCircleFilled(sx+sw*p,sy+2.5,7,0.96,0.95,1,1)
+        rr(x+w-64,y+18,x+w,y+52,0.050,0.045,0.085,0.96,7)
+        out(x+w-64,y+18,x+w,y+52,0.20,0.18,0.32,0.75,1)
+        local shown = string.format("%.2f",cur)
+        tcenter(x+w-32,y+28,shown,T.text[1],T.text[2],T.text[3],0.95)
+        if cl == true and inb(mx,my,sx-4,sy-12,sx+sw+4,sy+18) then
+            cur = minv + clamp((mx-sx)/sw,0,1)*(maxv-minv)
+            if key then __EC16[key] = cur end
+        end
+        return cur
+    end
+    local function hue_row(mx,my,cl,x,y,w,label,target)
+        local hue = hue_of(target)
+        local col = hsv(hue)
+        tleft(x,y,label,T.text[1],T.text[2],T.text[3],0.88)
+        rr(x,y+28,x+28,y+56,col[1],col[2],col[3],0.98,6)
+        out(x,y+28,x+28,y+56,1,1,1,0.28,1)
+        local sx,sy,sw = x+42,y+38,w-42
+        local parts = 42
+        for i=0,parts-1 do
+            local c = hsv(i/parts)
+            rect(sx+sw*(i/parts),sy,sx+sw*((i+1)/parts),sy+8,c[1],c[2],c[3],1)
+        end
+        out(sx,sy-2,sx+sw,sy+10,0.20,0.18,0.30,0.80,1)
+        local kx = sx + sw*hue
+        rect(kx-3,sy-7,kx+3,sy+15,0.98,0.98,1,0.98)
+        if cl == true and inb(mx,my,sx,sy-12,sx+sw,sy+18) then
+            hue = clamp((mx-sx)/sw,0,1)
+            apply_hue(target,hue)
+        end
+    end
+    local function button(mx,my,cl,x,y,w,h,label,id)
+        local hov = inb(mx,my,x,y,x+w,y+h)
+        rr(x,y,x+w,y+h,hov and 0.095 or 0.055,hov and 0.050 or 0.040,hov and 0.130 or 0.085,0.96,8)
+        out(x,y,x+w,y+h,T.acc[1],T.acc[2],T.acc[3],hov and 0.70 or 0.35,1)
+        tcenter(x+w*0.5,y+h*0.5-7,label,T.text[1],T.text[2],T.text[3],0.96)
+        if click(mx,my,cl,x,y,x+w,y+h) then
+            pcall(function() if __EC16_UI and __EC16_UI.buttons and __EC16_UI.buttons[id] then __EC16_UI.buttons[id]() end end)
+        end
+    end
+    local function panel(x,y,w,h,title,kind)
+        bg_card(x,y,x+w,y+h,12,0.95)
+        icon(x+28,y+32,kind or "box",true,1)
+        tleft(x+58,y+22,title,T.text[1],T.text[2],T.text[3],0.98)
+        rect(x+20,y+62,x+w-20,y+63,T.line[1],T.line[2],T.line[3],0.35)
+    end
+    local function nav_item(mx,my,cl,x,y,w,h,label,active,kind)
+        local hov = inb(mx,my,x,y,x+w,y+h)
+        if active then
+            rr(x,y,x+w,y+h,0.090,0.045,0.105,0.92,9)
+            rect(x,y+4,x+3,y+h-4,T.acc[1],T.acc[2],T.acc[3],0.95)
+        elseif hov then
+            rr(x,y,x+w,y+h,0.050,0.040,0.090,0.62,9)
+        end
+        icon(x+28,y+h*0.5,kind or "target",active,0.95)
+        tleft(x+58,y+h*0.5-7,label,active and T.text[1] or T.dim[1],active and T.text[2] or T.dim[2],active and T.text[3] or T.dim[3],active and 0.97 or 0.88)
+        return click(mx,my,cl,x,y,x+w,y+h)
+    end
+
+    local function valid_section(tab, sec)
+        local M = {
+            aim={{"General","aim"},{"Target","target"},{"TP","tp"},{"Tracers","target"},{"Aura","aura"}},
+            esp={{"Armor","box"},{"World","list"},{"Loot","list"},{"Base","box"},{"Misc","cfg"},{"Moderator List","list"},{"Info","cfg"}},
+            noclip={{"Noclip","tp"}},
+            visuals={{"General","eye"},{"Effects","aura"}},
+            configs={{"Configs","cfg"}}
+        }
+        local arr = M[tab] or M.aim
+        for _,v in ipairs(arr) do if v[1] == sec then return sec end end
+        return arr[1][1]
+    end
+    local function sections_for(tab)
+        if tab == "aim" then return {{"General","aim"},{"Target","target"},{"TP","tp"},{"Tracers","target"},{"Aura","aura"}} end
+        if tab == "esp" then return {{"Armor","box"},{"World","list"},{"Loot","list"},{"Base","box"},{"Misc","cfg"},{"Moderator List","list"},{"Info","cfg"}} end
+        if tab == "noclip" then return {{"Noclip","tp"}} end
+        if tab == "visuals" then return {{"General","eye"},{"Effects","aura"}} end
+        return {{"Configs","cfg"}}
+    end
+    local function current_section(tab)
+        if tab == "aim" then __EC16.aimSection = valid_section(tab,__EC16.aimSection); return __EC16.aimSection end
+        if tab == "esp" then __EC16.espSection = valid_section(tab,__EC16.espSection); return __EC16.espSection end
+        if tab == "noclip" then __EC16.noclipSection = valid_section(tab,__EC16.noclipSection); return __EC16.noclipSection end
+        if tab == "visuals" then __EC16.visualSection = valid_section(tab,__EC16.visualSection); return __EC16.visualSection end
+        __EC16.configSection = "Configs"; return "Configs"
+    end
+    local function set_section(tab,s)
+        if tab == "aim" then __EC16.aimSection = s elseif tab == "esp" then __EC16.espSection = s elseif tab == "noclip" then __EC16.noclipSection = s elseif tab == "visuals" then __EC16.visualSection = s else __EC16.configSection = s end
+    end
+
+    local function draw_player_card(x,y,w)
+        bg_card(x,y,x+w,y+76,10,0.92)
+        local name = draw_avatar(x+14,y+14,48)
+        if #name > 18 then name = string.sub(name,1,18) .. "..." end
+        tleft(x+74,y+20,name,T.text[1],T.text[2],T.text[3],0.96)
+        tleft(x+74,y+40,"Local player",T.dim[1],T.dim[2],T.dim[3],0.84)
+        Drawing.DrawCircleFilled(x+w-64,y+39,3,T.green[1],T.green[2],T.green[3],0.95)
+        tleft(x+w-54,y+31,"Online",T.green[1],T.green[2],T.green[3],0.88)
+    end
+
+    local function draw_list(mx,my,cl,x,y,w,items,prefix,maxRows)
+        maxRows = maxRows or 12
+        local cols = (w > 520) and 2 or 1
+        local colW = (w - (cols-1)*16) / cols
+        for i=1,math.min(#items,maxRows) do
+            local item = items[i]
+            local col = (i-1) % cols
+            local row = math.floor((i-1) / cols)
+            local ix = x + col * (colW + 16)
+            local iy = y + row * 32
+            local id = prefix .. item.id
+            local on = get_check(id)
+            local hov = inb(mx,my,ix,iy,ix+colW,iy+26)
+            if click(mx,my,cl,ix,iy,ix+colW,iy+26) then on = not on; set_check(id,on) end
+            if hov then rr(ix,iy,ix+colW,iy+26,0.050,0.040,0.090,0.55,6) end
+            rr(ix+2,iy+5,ix+18,iy+21,on and T.acc[1] or 0.065,on and T.acc[2] or 0.058,on and T.acc[3] or 0.105,on and 0.95 or 0.90,4)
+            out(ix+2,iy+5,ix+18,iy+21,0.20,0.18,0.30,0.65,1)
+            if on then line(ix+5,iy+13,ix+9,iy+18,1,1,1,0.90,1.5); line(ix+9,iy+18,ix+16,iy+8,1,1,1,0.90,1.5) end
+            local label = tostring(item.title or item.id)
+            if #label > 20 then label = string.sub(label,1,20) .. "..." end
+            tleft(ix+26,iy+7,label,T.text[1],T.text[2],T.text[3],on and 0.95 or 0.76)
+        end
+        if #items > maxRows then
+            tleft(x,y+math.ceil(maxRows/cols)*32+4,"More items stay active in ESP logic",T.dim[1],T.dim[2],T.dim[3],0.72)
+        end
+    end
+
+    local function draw_aim(mx,my,cl,cx,cy,cw,ch,sec)
+        local gap = 16
+        local lw = math.floor((cw-gap)*0.56)
+        local rw = cw - gap - lw
+        if sec == "General" then
+            panel(cx,cy,lw,ch,"Aimbot","aim")
+            local x,y,w = cx+22,cy+78,lw-44
+            check_row(mx,my,cl,x,y,w,62,"Aimbot","Automatically lock onto target","ap_aim_enable_fixed_click","aim")
+            check_row(mx,my,cl,x,y+70,w,62,"Prediction","Predict target movement","ap_prediction_main","target")
+            check_row(mx,my,cl,x,y+140,w,62,"Team Check","Ignore teammates","ap_team_main","list")
+            check_row(mx,my,cl,x,y+210,w,62,"Sticky Aim","Keep aim on target","ap_sticky_main","aura")
+            check_row(mx,my,cl,x,y+280,w,62,"Silent Aim","Silent target assist","ec_silent_enabled","eye")
+            button(mx,my,cl,x,y+370,w,42,"Open Keybind Panel","ap_aim_bind_wait")
+            panel(cx+lw+gap,cy,rw,ch,"FOV Settings","eye")
+            local rx,ry,ww = cx+lw+gap+22,cy+78,rw-44
+            local fovOn = get_check("ap_fov_show_main")
+            if bool_row(mx,my,cl,rx,ry,ww,"FOV Enabled",fovOn,"aim") ~= fovOn then set_check("ap_fov_show_main",not fovOn) end
+            __EC16.rainbowFov = bool_row(mx,my,cl,rx,ry+44,ww,"Rainbow FOV",__EC16.rainbowFov == true,"aura")
+            hue_row(mx,my,cl,rx,ry+92,ww,"FOV Color","fov")
+            local fc = __EC16.fovColor or hsv(__EC16.fovHue or 0.90)
+            tleft(rx,ry+174,"FOV Preview",T.text[1],T.text[2],T.text[3],0.90)
+            local pcx,pcy = rx+ww*0.5,ry+258
+            Drawing.DrawCircleFilled(pcx,pcy,58,0.12,0.12,0.17,0.95)
+            Drawing.DrawCircle(pcx,pcy,58,fc[1] or T.acc[1],fc[2] or T.acc[2],fc[3] or T.acc[3],0.90,1.6)
+            Drawing.DrawCircleFilled(pcx,pcy,4,0.98,0.98,1,1)
+            slider_int(mx,my,cl,rx,ry+330,ww,"FOV Size","ap_fov_main",50,600)
+            slider_int(mx,my,cl,rx,ry+394,ww,"FOV Transparency","ap_fov_alpha_main",0,100)
+            __EC16.rainbowFovSpeed = slider_float(mx,my,cl,rx,ry+458,ww,"Rainbow Speed","rainbowFovSpeed",__EC16.rainbowFovSpeed or 2.0,0.2,8)
+        elseif sec == "Target" then
+            panel(cx,cy,lw,ch,"Target","target")
+            local x,y,w = cx+22,cy+78,lw-44
+            slider_int(mx,my,cl,x,y,w,"Max Distance","ap_maxdist_main",50,3000)
+            check_row(mx,my,cl,x,y+76,w,62,"Target Strafe","Move around target","ap_target_strafe_main","target")
+            ap_target_strafe_radius = slider_float(mx,my,cl,x,y+160,w,"Strafe Radius",nil,ap_target_strafe_radius or 4.0,1.0,50.0)
+            ap_target_strafe_speed = slider_float(mx,my,cl,x,y+224,w,"Strafe Speed",nil,ap_target_strafe_speed or 280,50,700)
+            panel(cx+lw+gap,cy,rw,238,"Keybind","cfg")
+            if __ec16_keybind then pcall(__ec16_keybind,mx,my,cl,cx+lw+gap+24,cy+84,"Aimbot Keybind") end
+        elseif sec == "TP" then
+            panel(cx,cy,lw,ch,"Aimlock TP","tp")
+            local x,y,w = cx+22,cy+76,lw-44
+            check_row(mx,my,cl,x,y,w,56,"Left TP","Teleport left from target","ap_left_tp_enabled","tp")
+            if __ec16_tp_keybind then pcall(__ec16_tp_keybind,mx,my,cl,x,y+62,"Left TP Key","left") end
+            check_row(mx,my,cl,x,y+116,w,56,"Right TP","Teleport right from target","ap_right_tp_enabled","tp")
+            if __ec16_tp_keybind then pcall(__ec16_tp_keybind,mx,my,cl,x,y+178,"Right TP Key","right") end
+            check_row(mx,my,cl,x,y+232,w,56,"90 Left TP","Side-angle teleport","ap_90_left_tp_enabled","tp")
+            check_row(mx,my,cl,x,y+296,w,56,"90 Right TP","Side-angle teleport","ap_90_right_tp_enabled","tp")
+            panel(cx+lw+gap,cy,rw,190,"Distance","target")
+            slider_int(mx,my,cl,cx+lw+gap+22,cy+84,rw-44,"TP Distance","ap_side_tp_distance",1,80)
+        elseif sec == "Tracers" then
+            EC_BT = EC_BT or {}
+            panel(cx,cy,lw,ch,"Bullet Tracers","target")
+            local x,y,w = cx+22,cy+78,lw-44
+            EC_BT.enabled = bool_row(mx,my,cl,x,y,w,"Bullet Tracers",EC_BT.enabled == true,"target")
+            EC_BT.instant = bool_row(mx,my,cl,x,y+44,w,"Instant Tracer",EC_BT.instant ~= false,"aim")
+            hue_row(mx,my,cl,x,y+94,w,"Tracer Color","tracer")
+            EC_BT.life = slider_float(mx,my,cl,x,y+164,w,"Tracer Life",nil,EC_BT.life or 4.0,0.10,8.0)
+            EC_BT.maxDist = slider_float(mx,my,cl,x,y+228,w,"Tracer Max Dist",nil,EC_BT.maxDist or 1000,100,3000)
+            panel(cx+lw+gap,cy,rw,ch,"Hit Effects","aura")
+            local rx,ry,ww = cx+lw+gap+22,cy+78,rw-44
+            EC_BT.hitfx = bool_row(mx,my,cl,rx,ry,ww,"Hit Effects",EC_BT.hitfx == true,"aura")
+            EC_BT.hitSize = slider_float(mx,my,cl,rx,ry+62,ww,"Hit Effect Size",nil,EC_BT.hitSize or 38,18,96)
+            hue_row(mx,my,cl,rx,ry+128,ww,"Hit Effect Color","hitfx")
+            if __ec16_tracer_style_dropdown then pcall(__ec16_tracer_style_dropdown,mx,my,cl,rx,ry+214,ww) end
+        elseif sec == "Aura" then
+            panel(cx,cy,lw,ch,"Self Aura","aura")
+            local x,y,w = cx+22,cy+78,lw-44
+            __EC16.selfAura = bool_row(mx,my,cl,x,y,w,"Self Aura",__EC16.selfAura == true,"aura")
+            hue_row(mx,my,cl,x,y+58,w,"Aura Color 1","aura_bottom")
+            hue_row(mx,my,cl,x,y+132,w,"Aura Color 2","aura_top")
+            panel(cx+lw+gap,cy,rw,240,"Aura Style","aura")
+            if __ec16_aura_style_dropdown then pcall(__ec16_aura_style_dropdown,mx,my,cl,cx+lw+gap+22,cy+82,rw-44) end
+            local col1 = __EC16.selfAuraBottomColor or hsv(__EC16.selfAuraBottomHue or 0.92)
+            local col2 = __EC16.selfAuraTopColor or hsv(__EC16.selfAuraTopHue or 0.55)
+            local px,py = cx+lw+gap+rw*0.5,cy+365
+            Drawing.DrawCircle(px,py,50,col1[1],col1[2],col1[3],0.65,2)
+            Drawing.DrawCircle(px,py,30,col2[1],col2[2],col2[3],0.80,2)
+            Drawing.DrawCircleFilled(px,py,7,T.text[1],T.text[2],T.text[3],0.90)
+        end
+    end
+
+    local function draw_esp(mx,my,cl,cx,cy,cw,ch,sec)
+        local gap = 16
+        local col = math.floor((cw - gap*2)/3)
+        if sec == "Armor" then
+            panel(cx,cy,col,244,"Armor","box")
+            local x,y,w = cx+18,cy+76,col-36
+            check_row(mx,my,cl,x,y,w,48,"Enabled","","armoriso_target_enabled","box")
+            check_row(mx,my,cl,x,y+52,w,48,"Show Weapon Slot","","armoriso_show_weapon","box")
+            check_row(mx,my,cl,x,y+104,w,48,"Rainbow Border","","armoriso_rainbow_border","aura")
+            __EC16.armorEspPlayers = bool_row(mx,my,cl,x,y+158,w,"Armor ESP Players",__EC16.armorEspPlayers == true,"target")
+            button(mx,my,cl,x,y+200,w,34,"Reload Icons","armoriso_reload_icons")
+            panel(cx+col+gap,cy,col,330,"Settings","cfg")
+            local x2,y2,w2 = cx+col+gap+18,cy+76,col-36
+            slider_int(mx,my,cl,x2,y2,w2,"Size","armoriso_target_size",20,96)
+            slider_int(mx,my,cl,x2,y2+64,w2,"Max Distance","armoriso_max_distance",50,3000)
+            slider_int(mx,my,cl,x2,y2+128,w2,"Glow Power","armoriso_glow_power",0,100)
+            __EC16.armorEspSize = slider_float(mx,my,cl,x2,y2+192,w2,"Player ESP Size","armorEspSize",__EC16.armorEspSize or 18,10,32)
+            panel(cx+(col+gap)*2,cy,col,250,"Colors","aura")
+            hue_row(mx,my,cl,cx+(col+gap)*2+18,cy+78,col-36,"Border Color","armor_border")
+            hue_row(mx,my,cl,cx+(col+gap)*2+18,cy+152,col-36,"Glow Color","armor_glow")
+        elseif sec == "World" or sec == "Loot" or sec == "Base" then
+            local items = (sec == "World" and __EC16_WORLD) or (sec == "Loot" and __EC16_LOOT) or __EC16_BASE or {}
+            local prefix = "k1_"
+            panel(cx,cy,math.floor(cw*0.66),ch,sec .. " ESP","list")
+            draw_list(mx,my,cl,cx+22,cy+78,math.floor(cw*0.66)-44,items,prefix,18)
+            panel(cx+math.floor(cw*0.66)+gap,cy,cw-math.floor(cw*0.66)-gap,330,"Options","cfg")
+            local x,y,w = cx+math.floor(cw*0.66)+gap+18,cy+76,cw-math.floor(cw*0.66)-gap-36
+            if sec == "World" then
+                slider_int(mx,my,cl,x,y,w,"World Range","k1_world_range",25,2000)
+                check_row(mx,my,cl,x,y+70,w,48,"Show Distance","","k1_show_distance","eye")
+                check_row(mx,my,cl,x,y+122,w,48,"Show Icons","","k1_dropped_item_show_icon","box")
+                check_row(mx,my,cl,x,y+174,w,48,"Ore Icons","","k1_ore_show_icon","box")
+                slider_int(mx,my,cl,x,y+236,w,"Icon Size","k1_world_icon_size",10,48)
+            elseif sec == "Loot" then
+                slider_int(mx,my,cl,x,y,w,"Loot Range","k1_loot_range",25,2000)
+                check_row(mx,my,cl,x,y+70,w,48,"Show Distance","","k1_show_distance","eye")
+                check_row(mx,my,cl,x,y+122,w,48,"Show Icon","","k1_loot_show_icon","box")
+                check_row(mx,my,cl,x,y+174,w,48,"Fade Distance","","k1_loot_fade_distance","eye")
+                slider_int(mx,my,cl,x,y+236,w,"Icon Size","k1_loot_icon_size",10,48)
+            else
+                slider_int(mx,my,cl,x,y,w,"Base Range","k1_base_range",25,2000)
+                check_row(mx,my,cl,x,y+70,w,48,"Base Text","","k1_base_text","cfg")
+                check_row(mx,my,cl,x,y+122,w,48,"Show Distance","","k1_show_distance","eye")
+                button(mx,my,cl,x,y+190,w,38,"Force Rescan","k1_force_rescan")
+            end
+        elseif sec == "Misc" then
+            panel(cx,cy,math.floor((cw-gap)/2),260,"Fullbright","eye")
+            local x,y,w = cx+22,cy+78,math.floor((cw-gap)/2)-44
+            check_row(mx,my,cl,x,y,w,56,"Fullbright Overlay","","ec_fullbright_enabled","eye")
+            slider_int(mx,my,cl,x,y+78,w,"Opacity","ec_fullbright_opacity",0,80)
+            panel(cx+math.floor((cw-gap)/2)+gap,cy,math.floor((cw-gap)/2),220,"Menu","cfg")
+            if __ec16_menu_bind_button then pcall(__ec16_menu_bind_button,mx,my,cl,cx+math.floor((cw-gap)/2)+gap+22,cy+88) end
+        elseif sec == "Moderator List" then
+            panel(cx,cy,cw,ch,"Moderator List","list")
+            local count = 0; pcall(function() count = #(__EC16_MOD_ORDER or {}) end)
+            tleft(cx+28,cy+84,"Loaded moderator IDs: " .. tostring(count),T.text[1],T.text[2],T.text[3],0.95)
+            __EC16.moderatorPanel = bool_row(mx,my,cl,cx+28,cy+124,300,"Floating Moderator Panel",__EC16.moderatorPanel == true,"list")
+            local mods = {}; pcall(function() mods = __ec16_get_online_moderators and __ec16_get_online_moderators() or {} end)
+            if #mods == 0 then
+                tleft(cx+28,cy+178,"No moderators detected on server",T.dim[1],T.dim[2],T.dim[3],0.86)
+            else
+                for i=1,math.min(#mods,8) do
+                    local m = mods[i]; local yy = cy+176+(i-1)*30
+                    rr(cx+28,yy,cx+420,yy+24,0.035,0.028,0.060,0.90,6)
+                    tleft(cx+42,yy+6,tostring(m.name or "Player"),T.text[1],T.text[2],T.text[3],0.92)
+                end
+            end
+        else
+            panel(cx,cy,cw,250,"Info","cfg")
+            tleft(cx+28,cy+84,"Photo-style menu patch v119",T.text[1],T.text[2],T.text[3],0.95)
+            tleft(cx+28,cy+116,"All tabs now use one proportional theme.",T.dim[1],T.dim[2],T.dim[3],0.86)
+            if __ec16_menu_bind_button then pcall(__ec16_menu_bind_button,mx,my,cl,cx+28,cy+168) end
+        end
+    end
+
+    local function draw_noclip(mx,my,cl,cx,cy,cw,ch)
+        panel(cx,cy,math.floor((cw-16)/2),220,"Noclip","tp")
+        if __ec16_noclip_keybind then pcall(__ec16_noclip_keybind,mx,my,cl,cx+24,cy+86,"Noclip Keybind") end
+        panel(cx+math.floor((cw-16)/2)+16,cy,math.floor((cw-16)/2),220,"Movement","target")
+        tleft(cx+math.floor((cw-16)/2)+40,cy+88,"Use the keybind to toggle noclip.",T.dim[1],T.dim[2],T.dim[3],0.88)
+        tleft(cx+math.floor((cw-16)/2)+40,cy+120,"This page is visual-only except keybind.",T.dim[1],T.dim[2],T.dim[3],0.78)
+    end
+    local function draw_visuals(mx,my,cl,cx,cy,cw,ch,sec)
+        local gap = 16; local col = math.floor((cw-gap)/2)
+        if sec == "Effects" then
+            panel(cx,cy,col,300,"Aura Preview","aura")
+            local x,y,w = cx+22,cy+78,col-44
+            __EC16.selfAura = bool_row(mx,my,cl,x,y,w,"Self Aura",__EC16.selfAura == true,"aura")
+            hue_row(mx,my,cl,x,y+58,w,"Aura Color 1","aura_bottom")
+            hue_row(mx,my,cl,x,y+132,w,"Aura Color 2","aura_top")
+            panel(cx+col+gap,cy,col,300,"Hit Effects","target")
+            EC_BT = EC_BT or {}
+            EC_BT.hitfx = bool_row(mx,my,cl,cx+col+gap+22,cy+78,col-44,"Hit Effects",EC_BT.hitfx == true,"target")
+            hue_row(mx,my,cl,cx+col+gap+22,cy+136,col-44,"Hit Effect Color","hitfx")
+        else
+            panel(cx,cy,col,270,"Lighting","eye")
+            local x,y,w = cx+22,cy+78,col-44
+            check_row(mx,my,cl,x,y,w,56,"Fullbright Overlay","","ec_fullbright_enabled","eye")
+            slider_int(mx,my,cl,x,y+78,w,"Overlay Opacity","ec_fullbright_opacity",0,80)
+            panel(cx+col+gap,cy,col,270,"FOV Overlay","aim")
+            check_row(mx,my,cl,cx+col+gap+22,cy+78,col-44,56,"FOV Enabled","","ap_fov_show_main","aim")
+            hue_row(mx,my,cl,cx+col+gap+22,cy+154,col-44,"FOV Color","fov")
+        end
+    end
+    local function draw_configs(mx,my,cl,cx,cy,cw,ch)
+        panel(cx,cy,cw,ch,"Configs","cfg")
+        tleft(cx+28,cy+84,"Config storage folder:",T.text[1],T.text[2],T.text[3],0.95)
+        tleft(cx+28,cy+112,"C:\\blueberry\\scripts\\eclipze_configs\\",T.dim[1],T.dim[2],T.dim[3],0.86)
+        tleft(cx+28,cy+158,"The old save/load backend is kept loaded; this page is cleaned visually.",T.dim[1],T.dim[2],T.dim[3],0.82)
+        if __ec16_menu_bind_button then pcall(__ec16_menu_bind_button,mx,my,cl,cx+28,cy+220) end
+    end
+
+    -- Remove the extra small HUD card; it was overlapping the menu and looked like a duplicate player card.
+    __ec16_draw_top_hud = function(mx,my,cl) return end
+
+    function __ec16_menu(mx,my,cl,screenW,screenH)
+        if not (__EC16 and __EC16.open) then return end
+        __EC16.mainTab = __EC16.mainTab or "aim"
+        local sw, sh = n(screenW,1280), n(screenH,720)
+        local targetW = math.min(960, sw - 24)
+        local targetH = math.min(640, sh - 24)
+        if targetW < 700 then targetW = sw - 10 end
+        if targetH < 500 then targetH = sh - 10 end
+        targetW = math.max(500,targetW); targetH = math.max(360,targetH)
+        if not __EC119_CENTERED or __EC119_LAST_W ~= sw or __EC119_LAST_H ~= sh then
+            __EC16.w = targetW; __EC16.h = targetH
+            __EC16.x = math.floor((sw - targetW) * 0.5)
+            __EC16.y = math.floor((sh - targetH) * 0.5)
+            __EC119_CENTERED = true; __EC119_LAST_W = sw; __EC119_LAST_H = sh
+        else
+            __EC16.w = targetW; __EC16.h = targetH
+        end
+        local speed = 0.09
+        if __EC16.animDir == -1 then
+            __EC16.anim = clamp((__EC16.anim or 1) - speed,0,1)
+            if (__EC16.anim or 0) <= 0.01 then __EC16.open=false; __EC16.anim=0; return end
+        else
+            __EC16.anim = clamp((__EC16.anim or 0) + speed,0,1)
+        end
+        local reveal = sm(__EC16.anim or 1)
+        local x,y,w,h = __EC16.x or 10,__EC16.y or 10,__EC16.w or targetW,(__EC16.h or targetH)*reveal
+        if h < 120 then return end
+        if click(mx,my,cl,x,y,x+w,y+62) then
+            __EC16.dragging = true; __EC16.dragX = mx - x; __EC16.dragY = my - y
+        end
+        if cl ~= true then __EC16.dragging = false end
+        if __EC16.dragging then
+            __EC16.x = mx - (__EC16.dragX or 0); __EC16.y = my - (__EC16.dragY or 0)
+            x,y = __EC16.x,__EC16.y
+        end
+        local x2,y2 = x+w,y+h
+        rr(x-3,y-3,x2+3,y2+3,T.acc[1],T.acc[2],T.acc[3],0.030,18)
+        rr(x,y,x2,y2,0.055,0.043,0.100,0.92,16)
+        rr(x+1,y+1,x2-1,y2-1,T.bg[1],T.bg[2],T.bg[3],0.98,15)
+        rr(x+14,y+12,x2-14,y+64,0.028,0.024,0.052,0.92,11)
+        rect(x+14,y+63,x2-14,y+64,T.line[1],T.line[2],T.line[3],0.45)
+        local tabs = {{"aim","AIM",92},{"esp","FALLEN ESP",142},{"noclip","NOCLIP",110},{"visuals","VISUALS",112},{"configs","CONFIGS",116}}
+        local tx = x + 24
+        for _,tb in ipairs(tabs) do
+            local id,label,twid = tb[1],tb[2],tb[3]
+            local active = __EC16.mainTab == id
+            local hov = inb(mx,my,tx,y+12,tx+twid,y+64)
+            if click(mx,my,cl,tx,y+12,tx+twid,y+64) then __EC16.mainTab = id end
+            if active then
+                rr(tx,y+12,tx+twid,y+64,0.080,0.042,0.095,0.90,9)
+                rect(tx+8,y+62,tx+twid-8,y+64,T.acc[1],T.acc[2],T.acc[3],0.95)
+            elseif hov then
+                rr(tx,y+15,tx+twid,y+61,0.040,0.034,0.070,0.60,9)
+            end
+            tcenter(tx+twid*0.5,y+31,label,active and T.text[1] or T.dim[1],active and T.text[2] or T.dim[2],active and T.text[3] or T.dim[3],active and 0.96 or 0.78)
+            tx = tx + twid + 6
+        end
+        line(x2-110,y+34,x2-98,y+34,T.dim[1],T.dim[2],T.dim[3],0.80,1.4)
+        out(x2-68,y+27,x2-55,y+40,T.dim[1],T.dim[2],T.dim[3],0.70,1.2)
+        line(x2-29,y+26,x2-17,y+38,T.dim[1],T.dim[2],T.dim[3],0.80,1.4); line(x2-17,y+26,x2-29,y+38,T.dim[1],T.dim[2],T.dim[3],0.80,1.4)
+
+        local pad = 18
+        local sideW = 220
+        if w < 850 then sideW = 178 end
+        local sideX, sideY = x+pad, y+82
+        local sideH = h - 100
+        bg_card(sideX,sideY,sideX+sideW,sideY+sideH,12,0.96)
+        draw_player_card(sideX+14,sideY+14,sideW-28)
+        local tab = __EC16.mainTab
+        local sec = current_section(tab)
+        local navY = sideY + 106
+        local navH = 44
+        for i,it in ipairs(sections_for(tab)) do
+            if nav_item(mx,my,cl,sideX+14,navY+(i-1)*(navH+6),sideW-28,navH,it[1],sec==it[1],it[2]) then
+                set_section(tab,it[1]); sec = it[1]
+            end
+        end
+        rect(sideX+18,sideY+sideH-54,sideX+sideW-18,sideY+sideH-53,T.line[1],T.line[2],T.line[3],0.28)
+        tleft(sideX+24,sideY+sideH-34,"ECLIPZE v119",T.dim[1],T.dim[2],T.dim[3],0.74)
+
+        local contentX = sideX + sideW + 18
+        local contentY = sideY
+        local contentW = x2 - pad - contentX
+        local contentH = sideH
+        if contentW < 260 then return end
+        if tab == "aim" then draw_aim(mx,my,cl,contentX,contentY,contentW,contentH,sec)
+        elseif tab == "esp" then draw_esp(mx,my,cl,contentX,contentY,contentW,contentH,sec)
+        elseif tab == "noclip" then draw_noclip(mx,my,cl,contentX,contentY,contentW,contentH)
+        elseif tab == "visuals" then draw_visuals(mx,my,cl,contentX,contentY,contentW,contentH,sec)
+        else draw_configs(mx,my,cl,contentX,contentY,contentW,contentH) end
+    end
+
+    if notify then pcall(function() notify("ECLIPZE v119 proportional full-theme menu loaded", "success") end) end
+end
