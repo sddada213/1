@@ -18780,3 +18780,116 @@ do
         end
     end
 end
+
+--[[
+ECLIPZE v122 hotfix
+- Restores the ECLIPZE .LUA intro splash instead of jumping straight into the menu.
+- Keeps the custom themed menu from v121.
+- Fixes Right Shift open/close with debounce so the menu cannot double-toggle.
+- Does not remove Visuals / ESP / Noclip logic from the base script.
+]]
+do
+    __EC122 = __EC122 or { key = {}, lastToggle = 0, booted = false }
+
+    local function __ec122_now()
+        local ok, res = pcall(function()
+            if tick then return tick() end
+            return 0
+        end)
+        if ok and type(res) == "number" then return res end
+        return 0
+    end
+
+    local function __ec122_set_menu_open(v)
+        __EC16 = __EC16 or {}
+        __EC16.phase = "menu"
+        __EC16.menuBindKey = 0xA1
+        __EC16.menuBindWaiting = false
+        __EC16.open = v == true
+        __EC16.wantOpen = v == true
+        if v then
+            __EC16.animDir = 1
+            if (__EC16.anim or 0) < 0.03 then __EC16.anim = 0.03 end
+        else
+            __EC16.animDir = -1
+            if (__EC16.anim or 0) <= 0 then __EC16.anim = 1 end
+        end
+    end
+
+    function __EC122_toggle_menu()
+        local n = __ec122_now()
+        if __EC122.lastToggle and (n - __EC122.lastToggle) < 0.22 then return end
+        __EC122.lastToggle = n
+
+        __EC16 = __EC16 or {}
+        __EC16_MENU_ALLOWED = false
+        __EC16.menuBindKey = 0xA1
+        __EC16.menuBindWaiting = false
+
+        -- If the splash/loader is still active, Right Shift skips straight to the menu.
+        if __EC16.phase ~= "menu" then
+            __ec122_set_menu_open(true)
+            return
+        end
+
+        if __EC16.open and __EC16.animDir ~= -1 then
+            __ec122_set_menu_open(false)
+        else
+            __ec122_set_menu_open(true)
+        end
+    end
+
+    -- Existing v121 hooks call this dynamically, so replacing it fixes old registered hooks too.
+    if __EC121 then
+        function __EC121.toggle_menu()
+            return __EC122_toggle_menu()
+        end
+
+        function __EC121.key_tick()
+            __EC16_MENU_ALLOWED = false
+            if not Windows or not Windows.IsKeyPressed then return end
+            local down = false
+            pcall(function() down = Windows.IsKeyPressed(0xA1) == true end)
+            if down and not __EC122.key.rshift then
+                __EC122_toggle_menu()
+            end
+            __EC122.key.rshift = down
+        end
+    end
+
+    -- Extra direct bind. Debounce above prevents double toggles if another hook also fires.
+    if hooks and hooks.on_key then
+        pcall(function()
+            hooks.on_key(0xA1, function()
+                __EC122_toggle_menu()
+            end)
+        end)
+    end
+
+    -- Restore startup flow: ECLIPZE .LUA splash first, then the themed menu.
+    pcall(function()
+        __EC16 = __EC16 or {}
+        __EC16.phase = "intro"
+        __EC16.introStart = __ec122_now()
+        __EC16.loadStart = 0
+        __EC16.open = false
+        __EC16.wantOpen = false
+        __EC16.animDir = -1
+        __EC16.anim = 0
+        __EC16.menuBindKey = 0xA1
+        __EC16.menuBindWaiting = false
+        __EC16_MENU_ALLOWED = false
+    end)
+
+    -- Keep original menu polling disabled every frame; v122 owns Right Shift.
+    if hooks and hooks.on_render then
+        hooks.on_render(function()
+            __EC16_MENU_ALLOWED = false
+            if __EC121 and __EC121.key_tick then pcall(__EC121.key_tick) end
+        end)
+    end
+
+    if notify then
+        pcall(function() notify("ECLIPZE v122 splash + menu restored", "success") end)
+    end
+end
